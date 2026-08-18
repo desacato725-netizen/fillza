@@ -1,69 +1,202 @@
 name: Build FilzaApplySandboxExt from ZIP
 
+
+
 on:
+
   workflow_dispatch:
+  
+
 
 permissions:
+
   contents: read
+  
+
 
 jobs:
+
   build:
+  
     runs-on: macos-15
+    
     timeout-minutes: 30
+    
     steps:
+    
       - name: Checkout repository
+      
         uses: actions/checkout@v4
+        
+
 
       - name: Extract source ZIP
+      
         shell: bash
+        
         run: |
+        
           set -euo pipefail
+          
           ZIP_FILE="./FilzaSlop-auth-ready.zip"
+          
           test -f "$ZIP_FILE"
+          
           rm -rf source
+          
           mkdir source
+          
           unzip -q "$ZIP_FILE" -d source
+          
           PROJECT_DIR="source/FilzaSlop-main"
+          
           test -f "$PROJECT_DIR/Makefile"
+          
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          
+
 
       - name: Install build tools
+      
         run: brew install ldid
+        
+
 
       - name: Install Theos
+      
         env:
+        
           THEOS: "${{ runner.temp }}/theos"
+          
         run: |
+        
           git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          
           echo "$THEOS/bin" >> "$GITHUB_PATH"
+          
+
 
       - name: Select available iPhoneOS SDK
+      
         shell: bash
+        
         run: |
+        
           set -euo pipefail
+          
           SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          
           SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          
           test -d "$SDK_PATH"
+          
           sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" "$PROJECT_DIR/Makefile"
+          
           grep -q "TARGET := iphone:clang:${SDK_VERSION}:15.0" "$PROJECT_DIR/Makefile"
+          
           echo "Using iPhoneOS SDK ${SDK_VERSION} at ${SDK_PATH}"
+          
+
 
       - name: Build arm64 and arm64e
+      
         run: cd "$PROJECT_DIR" && make clean && make package FINALPACKAGE=1
+        
+
 
       - name: Collect unsigned artifacts
+      
+        shell: bash
+        
         run: |
+        
           set -euo pipefail
+          
           mkdir -p artifacts
-          cp "$PROJECT_DIR/.theos/obj/debug/FilzaApplySandboxExt.dylib" artifacts/
+          
+          DYLIB_PATH="$(find "$PROJECT_DIR" -type f -name 'FilzaApplySandboxExt.dylib' -print -quit)"
+          
+          test -n "$DYLIB_PATH"
+          
+          cp "$DYLIB_PATH" artifacts/FilzaApplySandboxExt.dylib
+          
           cp "$PROJECT_DIR/Makefile" artifacts/
+          
+          printf 'Collected dylib from: %s\n' "$DYLIB_PATH"
+          
           shasum -a 256 artifacts/* > artifacts/SHA256SUMS
+          
+
 
       - name: Upload unsigned artifacts
+      
         uses: actions/upload-artifact@v4
+        
         with:
+        
           name: "FilzaApplySandboxExt-from-zip-${{ github.sha }}"
+          
           path: artifacts/
+          
           if-no-files-found: error
+          
           retention-days: 7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
