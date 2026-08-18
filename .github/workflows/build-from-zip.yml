@@ -8,41 +8,51 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Locate and extract source ZIP
+      - name: Extract source ZIP
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="<LaTex>(find . -maxdepth 1 -type f -iname 'FilzaSlop-auth-ready.zip' -print -quit)"           if [ -z "</LaTex>{ZIP_FILE}" ]; then
-            echo 'FilzaSlop-auth-ready.zip was not found in repository root.' >&2
-            exit 1
-          fi
+          ZIP_FILE="./FilzaSlop-auth-ready.zip"
+          test -f "$ZIP_FILE"
           rm -rf source
           mkdir source
-          unzip -q "<LaTex>ZIP_FILE" -d source           PROJECT_DIR="</LaTex>(find source -maxdepth 2 -type f -name Makefile -print -quit | xargs -r dirname)"
-          if [ -z "<LaTex>{PROJECT_DIR}" ] || [ ! -f "</LaTex>{PROJECT_DIR}/Makefile" ]; then
-            echo 'The extracted source does not contain a Makefile.' >&2
-            exit 1
-          fi
-          echo "PROJECT_DIR=<LaTex>{PROJECT_DIR}" >> "</LaTex>GITHUB_ENV"
+          unzip -q "$ZIP_FILE" -d source
+          PROJECT_DIR="source/FilzaSlop-main"
+          test -f "$PROJECT_DIR/Makefile"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Install build tools
         run: brew install ldid
 
       - name: Install Theos
         env:
-          THEOS: <LaTex>{{ runner.temp }}/theos         run: |           git clone --depth 1 --recursive https://github.com/theos/theos.git "</LaTex>THEOS"
-          echo "THEOS=<LaTex>THEOS" >> "</LaTex>GITHUB_ENV"
-          echo "<LaTex>THEOS/bin" >> "</LaTex>GITHUB_PATH"
+          THEOS: "${{ runner.temp }}/theos"
+        run: |
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
 
       - name: Build arm64 and arm64e
-        run: cd "<LaTex>PROJECT_DIR" && make clean && make package FINALPACKAGE=1        - name: Collect unsigned artifacts         run: |           mkdir -p artifacts           find "</LaTex>PROJECT_DIR/.theos" -type f <LaTex>-name '*.dylib' -o -name '*.deb'</LaTex> -exec cp {} artifacts/ \; 2>/dev/null || true
-          cp "<LaTex>PROJECT_DIR/Makefile" artifacts/           shasum -a 256 artifacts/* > artifacts/SHA256SUMS        - name: Upload unsigned artifacts         uses: actions/upload-artifact@v4         with:           name: FilzaApplySandboxExt-from-zip-</LaTex>{{ github.sha }}
+        run: cd "$PROJECT_DIR" && make clean && make package FINALPACKAGE=1
+
+      - name: Collect unsigned artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp "$PROJECT_DIR/.theos/obj/debug/FilzaApplySandboxExt.dylib" artifacts/
+          cp "$PROJECT_DIR/Makefile" artifacts/
+          shasum -a 256 artifacts/* > artifacts/SHA256SUMS
+
+      - name: Upload unsigned artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "FilzaApplySandboxExt-from-zip-${{ github.sha }}"
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
