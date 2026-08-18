@@ -38,6 +38,17 @@ jobs:
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
           echo "$THEOS/bin" >> "$GITHUB_PATH"
 
+      - name: Select available iPhoneOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          test -d "$SDK_PATH"
+          sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" "$PROJECT_DIR/Makefile"
+          grep -q "TARGET := iphone:clang:${SDK_VERSION}:15.0" "$PROJECT_DIR/Makefile"
+          echo "Using iPhoneOS SDK ${SDK_VERSION} at ${SDK_PATH}"
+
       - name: Build arm64 and arm64e
         run: cd "$PROJECT_DIR" && make clean && make package FINALPACKAGE=1
 
