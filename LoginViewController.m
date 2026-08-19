@@ -4,7 +4,7 @@
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 
-static NSString * const API_BASE_URL = @"https://SEU-DOMINIO.example.com";
+static NSString * const API_BASE_URL = @"https://filzaauth-ou4i5tqw.manus.space";
 static NSString * const KeychainTag = @"com.filzaslop.device-key";
 static NSString * const KeychainToken = @"com.filzaslop.device-token";
 
