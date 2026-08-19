@@ -15,12 +15,12 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 @property(nonatomic,strong) UITextField *codeField;
 @property(nonatomic,strong) UILabel *messageLabel;
 @property(nonatomic,strong) UIButton *continueButton;
-@property(nonatomic,strong) SecKeyRef privateKey;
+@property(nonatomic,assign) SecKeyRef privateKey;
 @end
 
 @implementation LoginViewController
 
-- (void)dealloc { if (_privateKey) CFRelease(_privateKey); }
+- (void)dealloc { if (self.privateKey) CFRelease(self.privateKey); }
 
 - (void)viewDidLoad {
   [super viewDidLoad];
