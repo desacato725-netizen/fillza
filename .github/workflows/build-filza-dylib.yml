@@ -19,7 +19,11 @@ jobs:
           submodules: recursive
 
       - name: Install build tools
-        run: brew install ldid
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew untap aws/tap || true
+          brew install ldid
 
       - name: Install Theos
         env:
