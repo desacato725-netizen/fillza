@@ -1,0 +1,57 @@
+name: Build FilzaApplySandboxExt
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-dylib:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        run: brew install ldid
+
+      - name: Install Theos
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: |
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+
+      - name: Select available iPhoneOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          test -d "$SDK_PATH"
+          sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" Makefile
+          grep -q "TARGET := iphone:clang:${SDK_VERSION}:15.0" Makefile
+          echo "Using iPhoneOS SDK ${SDK_VERSION} at ${SDK_PATH}"
+
+      - name: Build tweak
+        run: |
+          make clean
+          make package FINALPACKAGE=1
+
+      - name: Collect unsigned artifacts
+        run: sh scripts/collect_unsigned_artifacts.sh artifacts
+
+      - name: Upload unsigned build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FilzaApplySandboxExt-unsigned-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
