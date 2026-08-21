@@ -137,20 +137,25 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   self.continueButton.enabled = NO; [self.activityIndicator startAnimating]; self.continueButton.alpha = 0.72; [self postJSON:@{ @"activationCode":code, @"publicKey":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/device/activate" completion:^(NSDictionary *json, NSError *error) {
     if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
     self.messageLabel.text = @"Dispositivo encontrado. Confirmando com segurança…";
-    [self requestChallenge];
+    NSString *challenge = [json[@"challenge"] isKindOfClass:NSString.class] ? json[@"challenge"] : nil;
+    if (challenge.length) [self authenticateWithChallenge:challenge]; else [self requestChallenge];
+  }];
+}
+
+- (void)authenticateWithChallenge:(NSString *)challenge {
+  NSData *message = [challenge dataUsingEncoding:NSUTF8StringEncoding]; CFErrorRef signingError = NULL; CFDataRef sig = SecKeyCreateSignature(self.privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef)message, &signingError); if (!sig) { self.messageLabel.text = @"Não foi possível assinar o desafio."; self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (signingError) CFRelease(signingError); return; }
+  NSString *signature = [(__bridge NSData *)sig base64EncodedStringWithOptions:0]; CFRelease(sig);
+  [self postJSON:@{ @"publicKey":[self publicKeyPEM], @"challenge":challenge, @"signature":signature } path:@"/api/device/auth" completion:^(NSDictionary *auth, NSError *authError) {
+    self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (authError) { self.messageLabel.text = authError.localizedDescription; return; }
+    NSData *tokenData = [auth[@"token"] dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:tokenData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
+    [self dismissViewControllerAnimated:YES completion:nil];
   }];
 }
 
 - (void)requestChallenge {
   [self postJSON:@{ @"publicKey": [self publicKeyPEM] } path:@"/api/device/auth" completion:^(NSDictionary *json, NSError *error) {
     if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
-    NSString *challenge = json[@"challenge"]; NSData *message = [challenge dataUsingEncoding:NSUTF8StringEncoding]; CFErrorRef signingError = NULL; CFDataRef sig = SecKeyCreateSignature(self.privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef)message, &signingError); if (!sig) { self.messageLabel.text = @"Não foi possível assinar o desafio."; self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (signingError) CFRelease(signingError); return; }
-    NSString *signature = [(__bridge NSData *)sig base64EncodedStringWithOptions:0]; CFRelease(sig);
-    [self postJSON:@{ @"publicKey":[self publicKeyPEM], @"challenge":challenge, @"signature":signature } path:@"/api/device/auth" completion:^(NSDictionary *auth, NSError *authError) {
-      self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (authError) { self.messageLabel.text = authError.localizedDescription; return; }
-      NSData *tokenData = [auth[@"token"] dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:tokenData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
-      [self dismissViewControllerAnimated:YES completion:nil];
-    }];
+    [self authenticateWithChallenge:json[@"challenge"]];
   }];
 }
 @end
