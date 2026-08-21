@@ -15,6 +15,8 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 @property(nonatomic,strong) UITextField *codeField;
 @property(nonatomic,strong) UILabel *messageLabel;
 @property(nonatomic,strong) UIButton *continueButton;
+@property(nonatomic,strong) UIActivityIndicatorView *activityIndicator;
+@property(nonatomic,strong) UILabel *eyebrowLabel;
 @property(nonatomic,assign) SecKeyRef privateKey;
 @end
 
@@ -24,31 +26,76 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  self.view.backgroundColor = [UIColor colorWithRed:0.96 green:0.97 blue:0.99 alpha:1];
-  self.title = @"Ativar Filza";
-  self.codeField = [[UITextField alloc] initWithFrame:CGRectZero];
-  self.codeField.placeholder = @"Código de ativação";
-  self.codeField.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
-  self.codeField.borderStyle = UITextBorderStyleRoundedRect;
-  self.codeField.translatesAutoresizingMaskIntoConstraints = NO;
+  self.view.backgroundColor = [UIColor colorWithRed:0.035 green:0.039 blue:0.055 alpha:1];
+  self.title = @"";
+  self.navigationController.navigationBarHidden = YES;
+
+  UIView *card = [[UIView alloc] initWithFrame:CGRectZero];
+  card.backgroundColor = [UIColor colorWithRed:0.075 green:0.082 blue:0.12 alpha:1];
+  card.layer.cornerRadius = 24;
+  card.layer.borderWidth = 1;
+  card.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+  card.translatesAutoresizingMaskIntoConstraints = NO;
+
+  self.eyebrowLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+  self.eyebrowLabel.text = @"FILZA ACCESS CONTROL";
+  self.eyebrowLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
+  self.eyebrowLabel.textColor = [UIColor colorWithRed:0.62 green:0.52 blue:1 alpha:1];
+  self.eyebrowLabel.translatesAutoresizingMaskIntoConstraints = NO;
+
+  UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+  titleLabel.text = @"Ativar dispositivo";
+  titleLabel.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
+  titleLabel.textColor = UIColor.whiteColor;
+  titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+
   self.messageLabel = [[UILabel alloc] initWithFrame:CGRectZero];
   self.messageLabel.numberOfLines = 0;
-  self.messageLabel.textColor = [UIColor secondaryLabelColor];
-  self.messageLabel.textAlignment = NSTextAlignmentCenter;
-  self.messageLabel.text = @"Insira o código fornecido pelo administrador. Este dispositivo será vinculado uma única vez.";
+  self.messageLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightRegular];
+  self.messageLabel.textColor = [UIColor colorWithWhite:0.70 alpha:1];
+  self.messageLabel.text = @"Insira sua key para vincular este dispositivo com segurança.";
   self.messageLabel.translatesAutoresizingMaskIntoConstraints = NO;
+
+  self.codeField = [[UITextField alloc] initWithFrame:CGRectZero];
+  self.codeField.placeholder = @"Insira sua key";
+  self.codeField.font = [UIFont monospacedSystemFontOfSize:16 weight:UIFontWeightMedium];
+  self.codeField.textColor = UIColor.whiteColor;
+  self.codeField.tintColor = [UIColor colorWithRed:0.62 green:0.52 blue:1 alpha:1];
+  self.codeField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+  self.codeField.autocorrectionType = UITextAutocorrectionTypeNo;
+  self.codeField.keyboardType = UIKeyboardTypeASCIICapable;
+  self.codeField.backgroundColor = [UIColor colorWithWhite:0 alpha:0.28];
+  self.codeField.layer.cornerRadius = 14;
+  self.codeField.layer.borderWidth = 1;
+  self.codeField.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+  self.codeField.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 16, 1)];
+  self.codeField.leftViewMode = UITextFieldViewModeAlways;
+  self.codeField.translatesAutoresizingMaskIntoConstraints = NO;
+
   self.continueButton = [UIButton buttonWithType:UIButtonTypeSystem];
   [self.continueButton setTitle:@"Ativar dispositivo" forState:UIControlStateNormal];
-  self.continueButton.backgroundColor = [UIColor colorWithRed:0.19 green:0.23 blue:0.82 alpha:1];
+  self.continueButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+  self.continueButton.backgroundColor = [UIColor colorWithRed:0.40 green:0.28 blue:0.95 alpha:1];
   [self.continueButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
-  self.continueButton.layer.cornerRadius = 12;
+  self.continueButton.layer.cornerRadius = 14;
   self.continueButton.translatesAutoresizingMaskIntoConstraints = NO;
   [self.continueButton addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
-  [self.view addSubview:self.messageLabel]; [self.view addSubview:self.codeField]; [self.view addSubview:self.continueButton];
+
+  self.activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+  self.activityIndicator.color = UIColor.whiteColor;
+  self.activityIndicator.hidesWhenStopped = YES;
+  self.activityIndicator.translatesAutoresizingMaskIntoConstraints = NO;
+
+  [self.view addSubview:card];
+  [card addSubview:self.eyebrowLabel]; [card addSubview:titleLabel]; [card addSubview:self.messageLabel]; [card addSubview:self.codeField]; [card addSubview:self.continueButton]; [card addSubview:self.activityIndicator];
   [NSLayoutConstraint activateConstraints:@[
-    [self.messageLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:32], [self.messageLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-32], [self.messageLabel.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor constant:-90],
-    [self.codeField.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:32], [self.codeField.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-32], [self.codeField.topAnchor constraintEqualToAnchor:self.messageLabel.bottomAnchor constant:24], [self.codeField.heightAnchor constraintEqualToConstant:50],
-    [self.continueButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:32], [self.continueButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-32], [self.continueButton.topAnchor constraintEqualToAnchor:self.codeField.bottomAnchor constant:14], [self.continueButton.heightAnchor constraintEqualToConstant:50]
+    [card.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20], [card.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20], [card.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
+    [self.eyebrowLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.eyebrowLabel.topAnchor constraintEqualToAnchor:card.topAnchor constant:26],
+    [titleLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [titleLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [titleLabel.topAnchor constraintEqualToAnchor:self.eyebrowLabel.bottomAnchor constant:8],
+    [self.messageLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.messageLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.messageLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:10],
+    [self.codeField.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.codeField.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.codeField.topAnchor constraintEqualToAnchor:self.messageLabel.bottomAnchor constant:24], [self.codeField.heightAnchor constraintEqualToConstant:54],
+    [self.continueButton.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.continueButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.continueButton.topAnchor constraintEqualToAnchor:self.codeField.bottomAnchor constant:14], [self.continueButton.heightAnchor constraintEqualToConstant:52], [self.continueButton.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-24],
+    [self.activityIndicator.centerXAnchor constraintEqualToAnchor:self.continueButton.centerXAnchor], [self.activityIndicator.centerYAnchor constraintEqualToAnchor:self.continueButton.centerYAnchor]
   ]];
   [self ensureDeviceKey];
   [self validateStoredToken];
@@ -87,19 +134,20 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 
 - (void)activate:(id)sender {
   NSString *code = [self.codeField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub = [self publicKeyPEM]; if (!code.length || !pub.length) { self.messageLabel.text = @"Informe um código válido."; return; }
-  self.continueButton.enabled = NO; [self postJSON:@{ @"activationCode":code, @"publicKey":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/device/activate" completion:^(NSDictionary *json, NSError *error) {
-    if (error) { self.continueButton.enabled = YES; self.messageLabel.text = error.localizedDescription; return; }
+  self.continueButton.enabled = NO; [self.activityIndicator startAnimating]; self.continueButton.alpha = 0.72; [self postJSON:@{ @"activationCode":code, @"publicKey":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/device/activate" completion:^(NSDictionary *json, NSError *error) {
+    if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
+    self.messageLabel.text = @"Dispositivo encontrado. Confirmando com segurança…";
     [self requestChallenge];
   }];
 }
 
 - (void)requestChallenge {
   [self postJSON:@{ @"publicKey": [self publicKeyPEM] } path:@"/api/device/auth" completion:^(NSDictionary *json, NSError *error) {
-    if (error) { self.continueButton.enabled = YES; self.messageLabel.text = error.localizedDescription; return; }
-    NSString *challenge = json[@"challenge"]; NSData *message = [challenge dataUsingEncoding:NSUTF8StringEncoding]; CFErrorRef signingError = NULL; CFDataRef sig = SecKeyCreateSignature(self.privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef)message, &signingError); if (!sig) { self.messageLabel.text = @"Não foi possível assinar o desafio."; self.continueButton.enabled = YES; if (signingError) CFRelease(signingError); return; }
+    if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
+    NSString *challenge = json[@"challenge"]; NSData *message = [challenge dataUsingEncoding:NSUTF8StringEncoding]; CFErrorRef signingError = NULL; CFDataRef sig = SecKeyCreateSignature(self.privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef)message, &signingError); if (!sig) { self.messageLabel.text = @"Não foi possível assinar o desafio."; self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (signingError) CFRelease(signingError); return; }
     NSString *signature = [(__bridge NSData *)sig base64EncodedStringWithOptions:0]; CFRelease(sig);
     [self postJSON:@{ @"publicKey":[self publicKeyPEM], @"challenge":challenge, @"signature":signature } path:@"/api/device/auth" completion:^(NSDictionary *auth, NSError *authError) {
-      self.continueButton.enabled = YES; if (authError) { self.messageLabel.text = authError.localizedDescription; return; }
+      self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (authError) { self.messageLabel.text = authError.localizedDescription; return; }
       NSData *tokenData = [auth[@"token"] dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:tokenData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
       [self dismissViewControllerAnimated:YES completion:nil];
     }];
