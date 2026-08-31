@@ -1,0 +1,73 @@
+name: Build SLEEP Control tweak
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew untap aws/tap || true
+          brew install ldid
+
+      - name: Install Theos
+        shell: bash
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+
+      - name: Select available iPhoneOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          test -d "$SDK_PATH"
+          sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" Makefile
+          grep -q "TARGET := iphone:clang:${SDK_VERSION}:15.0" Makefile
+          echo "Using iPhoneOS SDK ${SDK_VERSION}"
+
+      - name: Build unsigned tweak package
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean
+          make package FINALPACKAGE=1
+
+      - name: Collect release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh scripts/collect_unsigned_artifacts.sh artifacts
+          cp FilzaApplySandboxExt.plist artifacts/ 2>/dev/null || true
+          printf 'Commit: %s\nBuilt at: %s\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > artifacts/BUILD_INFO.txt
+          ditto -c -k --sequesterRsrc --keepParent artifacts "sleep-control-${GITHUB_SHA}.zip"
+
+      - name: Upload SLEEP Control artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sleep-control-${{ github.sha }}
+          path: |
+            artifacts/
+            sleep-control-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 30
