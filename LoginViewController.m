@@ -4,7 +4,8 @@
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 
-static NSString * const API_BASE_URL = @"https://filzaauth-ou4i5tqw.manus.space";
+// Defina o domínio publicado do painel SLEEP Control antes de compilar a tweak.
+static NSString * const API_BASE_URL = @"https://sleep-license-panel.manus.space";
 static NSString * const KeychainTag = @"com.filzaslop.device-key";
 static NSString * const KeychainToken = @"com.filzaslop.device-token";
 
@@ -104,9 +105,11 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 - (void)validateStoredToken {
   NSDictionary *query = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecReturnData:@YES}; CFTypeRef ref = NULL;
   if (SecItemCopyMatching((__bridge CFDictionaryRef)query, &ref) != errSecSuccess) return;
-  NSData *data = CFBridgingRelease(ref); NSString *token = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]; if (!token.length) return;
-  NSURL *url = [NSURL URLWithString:[API_BASE_URL stringByAppendingString:@"/api/device/validate"]]; NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url]; request.HTTPMethod = @"POST"; [request setValue:[@"Bearer " stringByAppendingString:token] forHTTPHeaderField:@"Authorization"];
-  [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *responseData, NSURLResponse *response, NSError *error) { BOOL valid = NO; if (!error && responseData) { NSDictionary *json = [NSJSONSerialization JSONObjectWithData:responseData options:0 error:nil]; valid = [json[@"valid"] boolValue]; } dispatch_async(dispatch_get_main_queue(), ^{ if (valid) [self dismissViewControllerAnimated:NO completion:nil]; else { SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); self.messageLabel.text = @"Esta ativação não está mais válida. Informe um novo código."; } }); }] resume];
+  NSData *data = CFBridgingRelease(ref); NSString *code = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]; if (!code.length) return;
+  [self postJSON:@{ @"key":code, @"installationId":[self publicKeyPEM] ?: @"", @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/license/validate" completion:^(NSDictionary *json, NSError *error) {
+    NSString *status = [json[@"status"] isKindOfClass:NSString.class] ? json[@"status"] : @"invalid";
+    dispatch_async(dispatch_get_main_queue(), ^{ if (!error && [status isEqualToString:@"active"]) [self dismissViewControllerAnimated:NO completion:nil]; else { SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); self.messageLabel.text = @"Esta ativação não está mais válida. Informe uma nova key."; } });
+  }];
 }
 
 - (void)ensureDeviceKey {
@@ -133,29 +136,13 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 }
 
 - (void)activate:(id)sender {
-  NSString *code = [self.codeField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub = [self publicKeyPEM]; if (!code.length || !pub.length) { self.messageLabel.text = @"Informe um código válido."; return; }
-  self.continueButton.enabled = NO; [self.activityIndicator startAnimating]; self.continueButton.alpha = 0.72; [self postJSON:@{ @"activationCode":code, @"publicKey":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/device/activate" completion:^(NSDictionary *json, NSError *error) {
-    if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
-    self.messageLabel.text = @"Dispositivo encontrado. Confirmando com segurança…";
-    NSString *challenge = [json[@"challenge"] isKindOfClass:NSString.class] ? json[@"challenge"] : nil;
-    if (challenge.length) [self authenticateWithChallenge:challenge]; else [self requestChallenge];
-  }];
-}
-
-- (void)authenticateWithChallenge:(NSString *)challenge {
-  NSData *message = [challenge dataUsingEncoding:NSUTF8StringEncoding]; CFErrorRef signingError = NULL; CFDataRef sig = SecKeyCreateSignature(self.privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, (__bridge CFDataRef)message, &signingError); if (!sig) { self.messageLabel.text = @"Não foi possível assinar o desafio."; self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (signingError) CFRelease(signingError); return; }
-  NSString *signature = [(__bridge NSData *)sig base64EncodedStringWithOptions:0]; CFRelease(sig);
-  [self postJSON:@{ @"publicKey":[self publicKeyPEM], @"challenge":challenge, @"signature":signature } path:@"/api/device/auth" completion:^(NSDictionary *auth, NSError *authError) {
-    self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; if (authError) { self.messageLabel.text = authError.localizedDescription; return; }
-    NSData *tokenData = [auth[@"token"] dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:tokenData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
+  NSString *code = [self.codeField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub = [self publicKeyPEM]; if (!code.length || !pub.length) { self.messageLabel.text = @"Informe uma key válida."; return; }
+  self.continueButton.enabled = NO; [self.activityIndicator startAnimating]; self.continueButton.alpha = 0.72; [self postJSON:@{ @"key":code, @"installationId":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/license/activate" completion:^(NSDictionary *json, NSError *error) {
+    NSString *status = [json[@"status"] isKindOfClass:NSString.class] ? json[@"status"] : @"invalid";
+    self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating];
+    if (error || ![status isEqualToString:@"active"]) { NSDictionary *messages = @{ @"invalid":@"Key inválida ou inexistente.", @"expired":@"Esta key expirou.", @"disabled":@"Esta key está bloqueada.", @"revoked":@"Esta key foi revogada.", @"device_mismatch":@"Esta key já está vinculada a outro dispositivo.", @"rate_limited":@"Muitas tentativas. Tente novamente mais tarde." }; self.messageLabel.text = messages[status] ?: @"Não foi possível ativar a licença."; return; }
+    NSData *codeData = [code dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:codeData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
     [self dismissViewControllerAnimated:YES completion:nil];
-  }];
-}
-
-- (void)requestChallenge {
-  [self postJSON:@{ @"publicKey": [self publicKeyPEM] } path:@"/api/device/auth" completion:^(NSDictionary *json, NSError *error) {
-    if (error) { self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating]; self.messageLabel.text = error.localizedDescription; return; }
-    [self authenticateWithChallenge:json[@"challenge"]];
   }];
 }
 @end
