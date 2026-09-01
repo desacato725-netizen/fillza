@@ -8,6 +8,7 @@
 static NSString * const API_BASE_URL = @"https://sleeppanel-by9jc9qe.manus.space";
 static NSString * const KeychainTag = @"com.filzaslop.device-key";
 static NSString * const KeychainToken = @"com.filzaslop.device-token";
+static NSString * const InstallationMarker = @"com.filzaslop.installation-marker";
 
 @interface LoginViewController : UIViewController
 @end
@@ -39,7 +40,7 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   card.translatesAutoresizingMaskIntoConstraints = NO;
 
   self.eyebrowLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-  self.eyebrowLabel.text = @"FILZA ACCESS CONTROL";
+  self.eyebrowLabel.text = @"SLEEP STORE";
   self.eyebrowLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
   self.eyebrowLabel.textColor = [UIColor colorWithRed:0.62 green:0.52 blue:1 alpha:1];
   self.eyebrowLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -87,19 +88,33 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   self.activityIndicator.hidesWhenStopped = YES;
   self.activityIndicator.translatesAutoresizingMaskIntoConstraints = NO;
 
+  UIButton *discordButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  [discordButton setTitle:@"Discord · @sleepff" forState:UIControlStateNormal];
+  discordButton.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+  [discordButton setTitleColor:[UIColor colorWithRed:0.62 green:0.52 blue:1 alpha:1] forState:UIControlStateNormal];
+  discordButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [discordButton addTarget:self action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
+
   [self.view addSubview:card];
-  [card addSubview:self.eyebrowLabel]; [card addSubview:titleLabel]; [card addSubview:self.messageLabel]; [card addSubview:self.codeField]; [card addSubview:self.continueButton]; [card addSubview:self.activityIndicator];
+  [card addSubview:self.eyebrowLabel]; [card addSubview:titleLabel]; [card addSubview:self.messageLabel]; [card addSubview:self.codeField]; [card addSubview:self.continueButton]; [card addSubview:self.activityIndicator]; [card addSubview:discordButton];
   [NSLayoutConstraint activateConstraints:@[
     [card.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20], [card.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20], [card.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
     [self.eyebrowLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.eyebrowLabel.topAnchor constraintEqualToAnchor:card.topAnchor constant:26],
     [titleLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [titleLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [titleLabel.topAnchor constraintEqualToAnchor:self.eyebrowLabel.bottomAnchor constant:8],
     [self.messageLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.messageLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.messageLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:10],
     [self.codeField.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.codeField.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.codeField.topAnchor constraintEqualToAnchor:self.messageLabel.bottomAnchor constant:24], [self.codeField.heightAnchor constraintEqualToConstant:54],
-    [self.continueButton.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.continueButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.continueButton.topAnchor constraintEqualToAnchor:self.codeField.bottomAnchor constant:14], [self.continueButton.heightAnchor constraintEqualToConstant:52], [self.continueButton.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-24],
+    [self.continueButton.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.continueButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.continueButton.topAnchor constraintEqualToAnchor:self.codeField.bottomAnchor constant:14], [self.continueButton.heightAnchor constraintEqualToConstant:52],
+    [discordButton.topAnchor constraintEqualToAnchor:self.continueButton.bottomAnchor constant:8], [discordButton.centerXAnchor constraintEqualToAnchor:card.centerXAnchor], [discordButton.heightAnchor constraintEqualToConstant:28], [discordButton.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-14],
     [self.activityIndicator.centerXAnchor constraintEqualToAnchor:self.continueButton.centerXAnchor], [self.activityIndicator.centerYAnchor constraintEqualToAnchor:self.continueButton.centerYAnchor]
   ]];
+  [self prepareInstallationState];
   [self ensureDeviceKey];
   [self validateStoredToken];
+}
+
+- (void)openDiscord:(id)sender {
+  NSURL *url = [NSURL URLWithString:@"https://discord.gg/sleepff"];
+  [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
 }
 
 - (void)validateStoredToken {
@@ -108,8 +123,23 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   NSData *data = CFBridgingRelease(ref); NSString *code = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]; if (!code.length) return;
   [self postJSON:@{ @"key":code, @"installationId":[self publicKeyPEM] ?: @"", @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/license/validate" completion:^(NSDictionary *json, NSError *error) {
     NSString *status = [json[@"status"] isKindOfClass:NSString.class] ? json[@"status"] : @"invalid";
-    dispatch_async(dispatch_get_main_queue(), ^{ if (!error && [status isEqualToString:@"active"]) [self dismissViewControllerAnimated:NO completion:nil]; else { SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); self.messageLabel.text = @"Esta ativação não está mais válida. Informe uma nova key."; } });
+    dispatch_async(dispatch_get_main_queue(), ^{ if (!error && [status isEqualToString:@"active"]) { [self dismissViewControllerAnimated:NO completion:nil]; return; } if (error || [status isEqualToString:@"rate_limited"]) { self.messageLabel.text = [status isEqualToString:@"rate_limited"] ? @"Servidor ocupado. Tente novamente em alguns instantes." : @"Não foi possível verificar agora. Confira sua conexão e tente novamente."; return; } SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); self.messageLabel.text = @"Esta ativação não está mais válida. Informe uma nova key."; });
   }];
+}
+
+- (void)prepareInstallationState {
+  NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+  if ([defaults boolForKey:InstallationMarker]) return;
+
+  NSDictionary *tokenQuery = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken};
+  SecItemDelete((__bridge CFDictionaryRef)tokenQuery);
+
+  NSData *tag = [KeychainTag dataUsingEncoding:NSUTF8StringEncoding];
+  NSDictionary *keyQuery = @{(__bridge id)kSecClass:(__bridge id)kSecClassKey, (__bridge id)kSecAttrApplicationTag:tag};
+  SecItemDelete((__bridge CFDictionaryRef)keyQuery);
+
+  [defaults setBool:YES forKey:InstallationMarker];
+  [defaults synchronize];
 }
 
 - (void)ensureDeviceKey {
@@ -140,7 +170,7 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   self.continueButton.enabled = NO; [self.activityIndicator startAnimating]; self.continueButton.alpha = 0.72; [self postJSON:@{ @"key":code, @"installationId":pub, @"deviceName":UIDevice.currentDevice.name, @"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] ?: @"unknown" } path:@"/api/license/activate" completion:^(NSDictionary *json, NSError *error) {
     NSString *status = [json[@"status"] isKindOfClass:NSString.class] ? json[@"status"] : @"invalid";
     self.continueButton.enabled = YES; self.continueButton.alpha = 1.0; [self.activityIndicator stopAnimating];
-    if (error || ![status isEqualToString:@"active"]) { NSDictionary *messages = @{ @"invalid":@"Key inválida ou inexistente.", @"expired":@"Esta key expirou.", @"disabled":@"Esta key está bloqueada.", @"revoked":@"Esta key foi revogada.", @"device_mismatch":@"Esta key já está vinculada a outro dispositivo.", @"rate_limited":@"Muitas tentativas. Tente novamente mais tarde." }; self.messageLabel.text = messages[status] ?: @"Não foi possível ativar a licença."; return; }
+    if (error || ![status isEqualToString:@"active"]) { if (error) { self.messageLabel.text = @"Não foi possível conectar ao servidor. Tente novamente."; return; } NSDictionary *messages = @{ @"invalid":@"Key inválida ou inexistente.", @"expired":@"Esta key expirou.", @"disabled":@"Esta key está bloqueada.", @"revoked":@"Esta key foi revogada.", @"device_mismatch":@"Esta key já está vinculada a outro dispositivo.", @"rate_limited":@"Servidor ocupado. Tente novamente em alguns instantes." }; self.messageLabel.text = messages[status] ?: @"Não foi possível ativar a licença."; return; }
     NSData *codeData = [code dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item = @{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken, (__bridge id)kSecValueData:codeData, (__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrAccount:KeychainToken}); SecItemAdd((__bridge CFDictionaryRef)item, NULL);
     [self dismissViewControllerAnimated:YES completion:nil];
   }];
