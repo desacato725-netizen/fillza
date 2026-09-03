@@ -46,6 +46,12 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
   [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data,NSURLResponse *response,NSError *error){ NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:@{}; dispatch_async(dispatch_get_main_queue(),^{ completion(json,error); }); }] resume];
 }
 - (void)saveKey:(NSString *)code { NSData *data=[code dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *item=@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag,(__bridge id)kSecValueData:data,(__bridge id)kSecAttrAccessible:(__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly}; SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}); SecItemAdd((__bridge CFDictionaryRef)item,NULL); }
+- (void)validateStoredToken {
+  NSDictionary *query=@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag,(__bridge id)kSecReturnData:@YES}; CFTypeRef ref=NULL; if(SecItemCopyMatching((__bridge CFDictionaryRef)query,&ref)!=errSecSuccess)return;
+  NSData *data=CFBridgingRelease(ref); NSString *code=[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]; NSString *pub=[self publicKeyPEM]; if(!code.length||!pub.length)return;
+  NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name,@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"}; __weak typeof(self) weakSelf=self;
+  [self post:body path:@"/api/license/validate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error||[status isEqualToString:@"rate_limited"]){return;} if([status isEqualToString:@"active"]){return;} SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}); }];
+}
 - (void)showOriginalDashboard {
   @try { [self.controller setValue:[[[self.controller valueForKey:@"keyField"] text] copy] forKey:@"accountLicenseKey"]; [self.controller setValue:@YES forKey:@"accountKeyVisible"]; [self.controller performSelector:NSSelectorFromString(@"showDashboardPage")]; } @catch (__unused NSException *e) {}
 }
@@ -64,7 +70,7 @@ static NSMapTable *SleepBridges;
 static void SleepActivateForController(id controller) {
   (void)SleepBrandingMarker;
   if(!SleepBridges) SleepBridges=[NSMapTable weakToStrongObjectsMapTable];
-  SleepNativeBridge *bridge=[SleepBridges objectForKey:controller]; if(!bridge){bridge=[SleepNativeBridge new]; bridge.controller=controller; [SleepBridges setObject:bridge forKey:controller]; [bridge prepareInstallationState]; [bridge ensureDeviceKey]; [bridge setStatus:@"dev|cholyyk"];}
+  SleepNativeBridge *bridge=[SleepBridges objectForKey:controller]; if(!bridge){bridge=[SleepNativeBridge new]; bridge.controller=controller; [SleepBridges setObject:bridge forKey:controller]; [bridge prepareInstallationState]; [bridge ensureDeviceKey]; [bridge validateStoredToken]; [bridge setStatus:@"dev|cholyyk"];}
   [bridge activate];
 }
 static void SleepPatchedLoginTappedNoArg(id self, SEL cmd) { SleepActivateForController(self); }
