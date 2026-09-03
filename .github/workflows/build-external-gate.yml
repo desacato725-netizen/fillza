@@ -1,0 +1,62 @@
+name: Build ExternalIOS SLEEP STORE gate
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'external-gate/**'
+      - '.github/workflows/build-external-gate.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew untap aws/tap || true
+          brew install ldid
+      - name: Install Theos
+        shell: bash
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+      - name: Select available iPhoneOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+          test -d "$SDK_PATH"
+          sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" external-gate/Makefile
+      - name: Build unsigned generic gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd external-gate
+          make clean
+          make package FINALPACKAGE=1
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          find external-gate -type f \( -name '*.dylib' -o -name '*.deb' \) -exec cp {} artifacts/ \;
+          cp external-gate/LoginViewController.m artifacts/
+          printf 'Commit: %s\nBuilt at: %s\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > artifacts/BUILD_INFO.txt
+          test -s artifacts/SleepStoreAuth.dylib
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sleep-store-external-gate-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
