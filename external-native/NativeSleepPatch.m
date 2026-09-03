@@ -50,7 +50,7 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 }
 - (void)activate {
   UITextField *field=nil; @try { field=[self.controller valueForKey:@"keyField"]; } @catch (__unused NSException *e) {}
-  NSString *code=[[field.text ?: @""] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub=[self publicKeyPEM];
+  NSString *rawCode = field.text ?: @""; NSString *code=[rawCode stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub=[self publicKeyPEM];
   if(!code.length||![code hasPrefix:@"SLEEP-"]||!pub.length){[self setStatus:@"Informe uma key SLEEP- válida."];return;}
   UIButton *button=nil; @try { button=[self.controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) {} button.enabled=NO; [self setStatus:@"Verificando key SLEEP STORE…"];
   NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name,@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"}; __weak typeof(self) weakSelf=self;
