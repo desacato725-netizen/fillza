@@ -59,7 +59,11 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
   [self post:body path:@"/api/license/validate" completion:^(NSDictionary *json,NSError *error){ NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error||[status isEqualToString:@"rate_limited"]){return;} if([status isEqualToString:@"active"]){return;} SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}); }];
 }
 - (void)showOriginalDashboard {
-  @try { [self.controller setValue:[[[self.controller valueForKey:@"keyField"] text] copy] forKey:@"accountLicenseKey"]; [self.controller setValue:@YES forKey:@"accountKeyVisible"]; [self.controller performSelector:NSSelectorFromString(@"showDashboardPage")]; } @catch (__unused NSException *e) {}
+  BOOL dashboardShown=NO;
+  @try { [self.controller performSelector:NSSelectorFromString(@"showDashboardPage")]; dashboardShown=YES; } @catch (__unused NSException *e) {}
+  if(!dashboardShown){ [self setStatus:@"Key validada, mas o dashboard original não pôde ser aberto."]; return; }
+  @try { [self.controller setValue:[[[self.controller valueForKey:@"keyField"] text] copy] forKey:@"accountLicenseKey"]; } @catch (__unused NSException *e) {}
+  @try { [self.controller setValue:@YES forKey:@"accountKeyVisible"]; } @catch (__unused NSException *e) {}
 }
 - (void)activate {
   UITextField *field=nil; @try { field=[self.controller valueForKey:@"keyField"]; } @catch (__unused NSException *e) {}
