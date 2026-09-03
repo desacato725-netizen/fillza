@@ -7,6 +7,7 @@ static NSString * const SleepKeyTag = @"com.filzaslop.device-key";
 static NSString * const SleepTokenTag = @"com.filzaslop.device-token";
 static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker";
 static NSString * const SleepBranding = @"sleepffx · dev|cholyyk";
+__attribute__((used)) static const char SleepBrandingMarker[] = "sleepffx";
 static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 
 @interface SleepNativeBridge : NSObject
@@ -61,6 +62,7 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 
 static NSMapTable *SleepBridges;
 static void SleepActivateForController(id controller) {
+  (void)SleepBrandingMarker;
   if(!SleepBridges) SleepBridges=[NSMapTable weakToStrongObjectsMapTable];
   SleepNativeBridge *bridge=[SleepBridges objectForKey:controller]; if(!bridge){bridge=[SleepNativeBridge new]; bridge.controller=controller; [SleepBridges setObject:bridge forKey:controller]; [bridge prepareInstallationState]; [bridge ensureDeviceKey]; [bridge setStatus:@"dev|cholyyk"];}
   [bridge activate];
