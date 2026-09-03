@@ -10,6 +10,11 @@ static NSString * const SleepBranding = @"sleepffx · dev|cholyyk";
 __attribute__((used)) static const char SleepBrandingMarker[] = "sleepffx";
 static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 
+@interface SleepDiscordTarget : NSObject
+@end
+@implementation SleepDiscordTarget
+- (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:SleepDiscord] options:@{} completionHandler:nil]; }
+@end
 @interface SleepNativeBridge : NSObject
 @property(nonatomic,weak) UIViewController *controller;
 @property(nonatomic,assign) SecKeyRef privateKey;
@@ -67,6 +72,20 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 @end
 
 static NSMapTable *SleepBridges;
+static void (*SleepOriginalViewDidAppear)(id, SEL, BOOL);
+static void SleepInstallLoginWatermark(id controller) {
+  UIView *root=nil; UITextField *field=nil; UIButton *loginButton=nil;
+  @try { root=[controller valueForKey:@"view"]; field=[controller valueForKey:@"keyField"]; loginButton=[controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) { return; }
+  if(!root || !field || !loginButton || [root viewWithTag:7788]) return;
+  UILabel *signature=[[UILabel alloc] initWithFrame:CGRectZero]; signature.tag=7788; signature.text=@"dev|cholyyk"; signature.textColor=[UIColor colorWithWhite:0.88 alpha:0.92]; signature.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold]; signature.textAlignment=NSTextAlignmentCenter; signature.translatesAutoresizingMaskIntoConstraints=NO;
+  UIButton *discord=[UIButton buttonWithType:UIButtonTypeSystem]; discord.tag=7789; [discord setTitle:@"Discord · sleepffx" forState:UIControlStateNormal]; discord.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium]; [discord setTitleColor:[UIColor colorWithWhite:0.76 alpha:0.95] forState:UIControlStateNormal]; discord.translatesAutoresizingMaskIntoConstraints=NO; [discord addTarget:[SleepDiscordTarget new] action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
+  [root addSubview:signature]; [root addSubview:discord];
+  [NSLayoutConstraint activateConstraints:@[[signature.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[signature.bottomAnchor constraintEqualToAnchor:discord.topAnchor constant:-2],[discord.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[discord.bottomAnchor constraintEqualToAnchor:root.safeAreaLayoutGuide.bottomAnchor constant:-10],[discord.heightAnchor constraintEqualToConstant:26]]];
+}
+static void SleepPatchedViewDidAppear(id self, SEL cmd, BOOL animated) {
+  if(SleepOriginalViewDidAppear) SleepOriginalViewDidAppear(self,cmd,animated);
+  dispatch_async(dispatch_get_main_queue(), ^{ SleepInstallLoginWatermark(self); });
+}
 static void SleepActivateForController(id controller) {
   (void)SleepBrandingMarker;
   if(!SleepBridges) SleepBridges=[NSMapTable weakToStrongObjectsMapTable];
@@ -79,7 +98,8 @@ __attribute__((constructor)) static void SleepInstall(void) {
   dispatch_async(dispatch_get_main_queue(), ^{
     Class cls=objc_getClass("ViewController"); if(!cls)return;
     SEL noArg=NSSelectorFromString(@"loginTapped"); Method method=class_getInstanceMethod(cls,noArg);
-    if(method){ const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,noArg,(IMP)SleepPatchedLoginTappedNoArg,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedNoArg); return; }
-    SEL withSender=NSSelectorFromString(@"loginTapped:"); method=class_getInstanceMethod(cls,withSender); if(!method)return; const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,withSender,(IMP)SleepPatchedLoginTappedWithSender,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedWithSender);
+    if(method){ const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,noArg,(IMP)SleepPatchedLoginTappedNoArg,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedNoArg); }
+    SEL withSender=NSSelectorFromString(@"loginTapped:"); method=class_getInstanceMethod(cls,withSender); if(method){ const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,withSender,(IMP)SleepPatchedLoginTappedWithSender,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedWithSender); }
+    SEL appear=NSSelectorFromString(@"viewDidAppear:"); Method appearMethod=class_getInstanceMethod(cls,appear); if(appearMethod){ SleepOriginalViewDidAppear=(void(*)(id,SEL,BOOL))method_getImplementation(appearMethod); const char *appearTypes=method_getTypeEncoding(appearMethod); if(!class_addMethod(cls,appear,(IMP)SleepPatchedViewDidAppear,appearTypes)) method_setImplementation(appearMethod,(IMP)SleepPatchedViewDidAppear); }
   });
 }
