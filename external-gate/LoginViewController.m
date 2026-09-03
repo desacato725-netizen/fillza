@@ -17,6 +17,7 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 @property(nonatomic,strong) UILabel *messageLabel;
 @property(nonatomic,strong) UIButton *continueButton;
 @property(nonatomic,strong) UIActivityIndicatorView *activityIndicator;
+@property(nonatomic,strong) UIButton *discordButton;
 @property(nonatomic,strong) UILabel *eyebrowLabel;
 @property(nonatomic,assign) SecKeyRef privateKey;
 @end
@@ -54,7 +55,7 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   self.messageLabel.numberOfLines = 0;
   self.messageLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightRegular];
   self.messageLabel.textColor = [UIColor colorWithWhite:0.70 alpha:1];
-  self.messageLabel.text = @"Insira sua key para vincular este dispositivo com segurança.";
+  self.messageLabel.text = @"sleepffx · dev|cholyyk\nInsira sua key para vincular este dispositivo com segurança.";
   self.messageLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
   self.codeField = [[UITextField alloc] initWithFrame:CGRectZero];
@@ -82,12 +83,20 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
   self.continueButton.translatesAutoresizingMaskIntoConstraints = NO;
   [self.continueButton addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
 
+  self.discordButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  [self.discordButton setTitle:@"Discord · sleepffx" forState:UIControlStateNormal];
+  [self.discordButton setTitleColor:[UIColor colorWithWhite:0.76 alpha:0.95] forState:UIControlStateNormal];
+  self.discordButton.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+  self.discordButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.discordButton addTarget:self action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
+
   self.activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
   self.activityIndicator.color = UIColor.whiteColor;
   self.activityIndicator.hidesWhenStopped = YES;
   self.activityIndicator.translatesAutoresizingMaskIntoConstraints = NO;
 
   [self.view addSubview:card];
+  [self.view addSubview:self.discordButton];
   [card addSubview:self.eyebrowLabel]; [card addSubview:titleLabel]; [card addSubview:self.messageLabel]; [card addSubview:self.codeField]; [card addSubview:self.continueButton]; [card addSubview:self.activityIndicator];
   [NSLayoutConstraint activateConstraints:@[
     [card.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20], [card.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20], [card.centerYAnchor constraintEqualToAnchor:self.view.centerYAnchor],
@@ -96,7 +105,8 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
     [self.messageLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.messageLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.messageLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:10],
     [self.codeField.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.codeField.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.codeField.topAnchor constraintEqualToAnchor:self.messageLabel.bottomAnchor constant:24], [self.codeField.heightAnchor constraintEqualToConstant:54],
     [self.continueButton.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:24], [self.continueButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24], [self.continueButton.topAnchor constraintEqualToAnchor:self.codeField.bottomAnchor constant:14], [self.continueButton.heightAnchor constraintEqualToConstant:52], [self.continueButton.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-24],
-    [self.activityIndicator.centerXAnchor constraintEqualToAnchor:self.continueButton.centerXAnchor], [self.activityIndicator.centerYAnchor constraintEqualToAnchor:self.continueButton.centerYAnchor]
+    [self.activityIndicator.centerXAnchor constraintEqualToAnchor:self.continueButton.centerXAnchor], [self.activityIndicator.centerYAnchor constraintEqualToAnchor:self.continueButton.centerYAnchor],
+    [self.discordButton.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor], [self.discordButton.topAnchor constraintEqualToAnchor:card.bottomAnchor constant:10], [self.discordButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-10], [self.discordButton.heightAnchor constraintEqualToConstant:28]
   ]];
   [self ensureDeviceKey];
   [self validateStoredToken];
@@ -133,6 +143,11 @@ static NSString * const KeychainToken = @"com.filzaslop.device-token";
 - (void)postJSON:(NSDictionary *)body path:(NSString *)path completion:(void (^)(NSDictionary *, NSError *))completion {
   NSURL *url = [NSURL URLWithString:[API_BASE_URL stringByAppendingString:path]]; NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url]; request.HTTPMethod = @"POST"; [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"]; request.HTTPBody = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
   [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) { NSDictionary *json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil; dispatch_async(dispatch_get_main_queue(), ^{ completion(json, error ?: ([json[@"error"] isKindOfClass:NSString.class] ? [NSError errorWithDomain:@"FilzaAuth" code:1 userInfo:@{NSLocalizedDescriptionKey:json[@"error"]}] : nil)); }); }] resume];
+}
+
+- (void)openDiscord:(id)sender {
+  NSURL *url = [NSURL URLWithString:@"https://discord.gg/sleepff"];
+  [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
 }
 
 - (void)activate:(id)sender {
