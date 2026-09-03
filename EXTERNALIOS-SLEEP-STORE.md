@@ -1,6 +1,6 @@
 # ExternalIOS + SLEEP STORE
 
-A cópia `ExternalIOS-sleep-store.ipa` foi preparada a partir de `ExternalIOS.ipa` sem alterar o arquivo original. O executável arm64 `ARIFIxIOS` recebeu um load command para `@executable_path/Frameworks/SleepStoreAuth.dylib`, e a dylib genérica contém a tela SLEEP STORE, as rotas `/api/license/activate` e `/api/license/validate`, o domínio `https://sleeppanel-by9jc9qe.manus.space` e o link do Discord `https://discord.gg/sleepff`.
+A cópia `ExternalIOS-sleepffx-black.ipa` foi preparada a partir de `ExternalIOS.ipa` sem alterar o arquivo original. O executável arm64 `ARIFIxIOS` recebeu um load command para `@executable_path/Frameworks/SleepStoreAuth.dylib`, e a dylib genérica contém a tela preta SLEEP STORE com `sleepffx`, assinatura `dev|cholyyk`, as rotas `/api/license/activate` e `/api/license/validate`, o domínio `https://sleeppanel-by9jc9qe.manus.space` e a marca d’água clicável do Discord em `https://discord.gg/sleepff`.
 
 ## Limitações importantes
 
@@ -10,4 +10,4 @@ O app original já possui um login nativo dentro do executável. A integração 
 
 ## Verificação estática realizada
 
-A IPA passou em `unzip -t`. O executável contém o load command da dylib e a dylib é universal para arm64/arm64e. O hash SHA-256 da cópia preparada deve ser conferido no arquivo de entrega ao transferi-la.
+A IPA passou em `unzip -t`. O executável contém o load command da dylib e a dylib é universal para arm64/arm64e. A presença dos marcadores de branding foi confirmada nos bytes compilados, incluindo as formas UTF-16 usadas pelo Mach-O. O hash SHA-256 da cópia preparada deve ser conferido no arquivo de entrega ao transferi-la. Essa é uma verificação estática; a abertura da tela e o clique no Discord ainda precisam ser confirmados em iOS.

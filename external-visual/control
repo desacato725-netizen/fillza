@@ -1,0 +1,8 @@
+Package: com.sleepstore.visual
+Name: SleepStoreVisual
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: SLEEP STORE visual patch for native ExternalIOS login
+Maintainer: dev|cholyyk
+Author: dev|cholyyk
+Section: Tweaks
