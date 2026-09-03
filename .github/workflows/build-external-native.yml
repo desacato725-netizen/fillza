@@ -1,0 +1,60 @@
+name: Build ExternalIOS native SLEEP STORE bridge
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'external-native/**'
+      - '.github/workflows/build-external-native.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew untap aws/tap || true
+          brew install ldid
+      - name: Install Theos
+        shell: bash
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+      - name: Select available iPhoneOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          sed -i.bak -E "s/^TARGET[[:space:]]*:=[[:space:]].*/TARGET := iphone:clang:${SDK_VERSION}:15.0/" external-native/Makefile
+      - name: Build unsigned native bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd external-native
+          make clean
+          make package FINALPACKAGE=1
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          find external-native -type f \( -name '*.dylib' -o -name '*.deb' \) -exec cp {} artifacts/ \;
+          cp external-native/NativeSleepPatch.m artifacts/
+          printf 'Commit: %s\nBuilt at: %s\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > artifacts/BUILD_INFO.txt
+          test -s artifacts/SleepNativeBridge.dylib
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sleep-store-external-native-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
