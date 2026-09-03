@@ -70,7 +70,8 @@ static NSString * const SleepBranding = @"sleepffx · dev|cholyyk";
 - (void)prepare:(UIViewController *)controller {
   self.controller=controller; [self prepareInstallationState]; [self ensureDeviceKey]; [self validateStoredToken];
   UIButton *button=[self button]; [button removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside]; [button addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
-  if (SleepBranding.length == 0) [self setStatus:SleepBranding];
+  [self setStatus:[NSString stringWithFormat:@"SLEEP STORE · %@", SleepBranding]];
+  UIView *root=controller.view; UIButton *discord=[root viewWithTag:7788]; if(!discord){ discord=[UIButton buttonWithType:UIButtonTypeSystem]; discord.tag=7788; discord.translatesAutoresizingMaskIntoConstraints=NO; [root addSubview:discord]; [NSLayoutConstraint activateConstraints:@[[discord.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[discord.bottomAnchor constraintEqualToAnchor:root.safeAreaLayoutGuide.bottomAnchor constant:-12],[discord.heightAnchor constraintEqualToConstant:28]]]; } [discord setTitle:@"Discord · sleepffx" forState:UIControlStateNormal]; discord.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium]; [discord setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal]; [discord addTarget:self action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
 }
 @end
 
@@ -84,4 +85,4 @@ static void SleepPatchedViewDidAppear(id self, SEL cmd, BOOL animated) {
     [bridge prepare:self];
   });
 }
-__attribute__((constructor)) static void SleepInstall(void){ dispatch_async(dispatch_get_main_queue(),^{ Class c=objc_getClass("ViewController"); Method m=c?class_getInstanceMethod(c,@selector(viewDidAppear:)):NULL; if(!m)return; SleepOriginalViewDidAppear=(void(*)(id,SEL,BOOL))method_getImplementation(m); method_setImplementation(m,(IMP)SleepPatchedViewDidAppear); }); }
+__attribute__((constructor)) static void SleepInstall(void){ dispatch_async(dispatch_get_main_queue(),^{ Class c=objc_getClass("ViewController"); if(!c)return; SEL sel=@selector(viewDidAppear:); Method m=class_getInstanceMethod(c,sel); if(!m)return; IMP original=method_getImplementation(m); const char *types=method_getTypeEncoding(m); SleepOriginalViewDidAppear=(void(*)(id,SEL,BOOL))original; if(!class_addMethod(c,sel,(IMP)SleepPatchedViewDidAppear,types)) method_setImplementation(m,(IMP)SleepPatchedViewDidAppear); }); }
