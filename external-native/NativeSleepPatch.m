@@ -15,6 +15,12 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
 @implementation SleepNativeBridge
 - (void)dealloc { if (self.privateKey) CFRelease(self.privateKey); }
 
+- (void)prepareInstallationState {
+  NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults; if([defaults boolForKey:SleepInstallMarker])return;
+  NSDictionary *tokenQuery=@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}; SecItemDelete((__bridge CFDictionaryRef)tokenQuery);
+  NSData *tag=[SleepKeyTag dataUsingEncoding:NSUTF8StringEncoding]; NSDictionary *keyQuery=@{(__bridge id)kSecClass:(__bridge id)kSecClassKey,(__bridge id)kSecAttrApplicationTag:tag}; SecItemDelete((__bridge CFDictionaryRef)keyQuery);
+  [defaults setBool:YES forKey:SleepInstallMarker]; [defaults synchronize];
+}
 - (void)ensureDeviceKey {
   NSData *tag=[SleepKeyTag dataUsingEncoding:NSUTF8StringEncoding];
   NSDictionary *q=@{(__bridge id)kSecClass:(__bridge id)kSecClassKey,(__bridge id)kSecAttrApplicationTag:tag,(__bridge id)kSecReturnRef:@YES};
@@ -61,7 +67,7 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
 }
 - (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://discord.gg/sleepff"] options:@{} completionHandler:nil]; }
 - (void)prepare:(UIViewController *)controller {
-  self.controller=controller; [self ensureDeviceKey]; [self validateStoredToken];
+  self.controller=controller; [self prepareInstallationState]; [self ensureDeviceKey]; [self validateStoredToken];
   UIView *loginView=nil; @try { loginView=[controller valueForKey:@"loginView"]; } @catch (__unused NSException *e) {}
   loginView.backgroundColor=[UIColor clearColor];
   UITextField *field=[self field]; field.placeholder=@"SLEEP- key"; field.textColor=[UIColor whiteColor]; field.tintColor=[UIColor whiteColor]; field.backgroundColor=[UIColor colorWithWhite:0 alpha:.35]; field.autocapitalizationType=UITextAutocapitalizationTypeNone; field.autocorrectionType=UITextAutocorrectionTypeNo;
