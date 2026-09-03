@@ -6,6 +6,7 @@ static NSString * const SleepAPI = @"https://sleeppanel-by9jc9qe.manus.space";
 static NSString * const SleepKeyTag = @"com.filzaslop.device-key";
 static NSString * const SleepTokenTag = @"com.filzaslop.device-token";
 static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker";
+static NSString * const SleepBranding = @"sleepffx · dev|cholyyk";
 
 @interface SleepNativeBridge : NSObject
 @property(nonatomic,weak) UIViewController *controller;
@@ -69,6 +70,7 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
 - (void)prepare:(UIViewController *)controller {
   self.controller=controller; [self prepareInstallationState]; [self ensureDeviceKey]; [self validateStoredToken];
   UIButton *button=[self button]; [button removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside]; [button addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
+  if (SleepBranding.length == 0) [self setStatus:SleepBranding];
 }
 @end
 
