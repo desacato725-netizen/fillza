@@ -79,6 +79,7 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 
 static NSMapTable *SleepBridges;
 static void (*SleepOriginalViewDidAppear)(id, SEL, BOOL);
+static BOOL SleepHooksInstalled;
 static void SleepInstallLoginWatermark(id controller) {
   UIView *root=nil; UITextField *field=nil; UIButton *loginButton=nil;
   @try { root=[controller valueForKey:@"view"]; field=[controller valueForKey:@"keyField"]; loginButton=[controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) { return; }
@@ -100,12 +101,20 @@ static void SleepActivateForController(id controller) {
 }
 static void SleepPatchedLoginTappedNoArg(id self, SEL cmd) { SleepActivateForController(self); }
 static void SleepPatchedLoginTappedWithSender(id self, SEL cmd, id sender) { SleepActivateForController(self); }
+static void SleepInstallHooks(void) {
+  if(SleepHooksInstalled)return;
+  Class cls=objc_getClass("ViewController");
+  if(!cls){ dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ SleepInstallHooks(); }); return; }
+  BOOL loginFound=NO;
+  SEL noArg=NSSelectorFromString(@"loginTapped"); Method method=class_getInstanceMethod(cls,noArg);
+  if(method){ loginFound=YES; const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,noArg,(IMP)SleepPatchedLoginTappedNoArg,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedNoArg); }
+  SEL withSender=NSSelectorFromString(@"loginTapped:"); method=class_getInstanceMethod(cls,withSender);
+  if(method){ loginFound=YES; const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,withSender,(IMP)SleepPatchedLoginTappedWithSender,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedWithSender); }
+  SEL appear=NSSelectorFromString(@"viewDidAppear:"); Method appearMethod=class_getInstanceMethod(cls,appear);
+  if(appearMethod){ SleepOriginalViewDidAppear=(void(*)(id,SEL,BOOL))method_getImplementation(appearMethod); const char *appearTypes=method_getTypeEncoding(appearMethod); if(!class_addMethod(cls,appear,(IMP)SleepPatchedViewDidAppear,appearTypes)) method_setImplementation(appearMethod,(IMP)SleepPatchedViewDidAppear); }
+  if(!loginFound){ dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ SleepInstallHooks(); }); return; }
+  SleepHooksInstalled=YES;
+}
 __attribute__((constructor)) static void SleepInstall(void) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    Class cls=objc_getClass("ViewController"); if(!cls)return;
-    SEL noArg=NSSelectorFromString(@"loginTapped"); Method method=class_getInstanceMethod(cls,noArg);
-    if(method){ const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,noArg,(IMP)SleepPatchedLoginTappedNoArg,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedNoArg); }
-    SEL withSender=NSSelectorFromString(@"loginTapped:"); method=class_getInstanceMethod(cls,withSender); if(method){ const char *types=method_getTypeEncoding(method); if(!class_addMethod(cls,withSender,(IMP)SleepPatchedLoginTappedWithSender,types)) method_setImplementation(method,(IMP)SleepPatchedLoginTappedWithSender); }
-    SEL appear=NSSelectorFromString(@"viewDidAppear:"); Method appearMethod=class_getInstanceMethod(cls,appear); if(appearMethod){ SleepOriginalViewDidAppear=(void(*)(id,SEL,BOOL))method_getImplementation(appearMethod); const char *appearTypes=method_getTypeEncoding(appearMethod); if(!class_addMethod(cls,appear,(IMP)SleepPatchedViewDidAppear,appearTypes)) method_setImplementation(appearMethod,(IMP)SleepPatchedViewDidAppear); }
-  });
+  dispatch_async(dispatch_get_main_queue(), ^{ SleepInstallHooks(); });
 }
