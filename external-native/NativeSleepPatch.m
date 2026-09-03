@@ -44,6 +44,13 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
   UIView *loginView=nil; @try { loginView=[self.controller valueForKey:@"loginView"]; } @catch (__unused NSException *e) {}
   loginView.hidden=YES;
 }
+- (void)validateStoredToken {
+  NSDictionary *q=@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag,(__bridge id)kSecReturnData:@YES}; CFTypeRef ref=NULL;
+  if(SecItemCopyMatching((__bridge CFDictionaryRef)q,&ref)!=errSecSuccess)return;
+  NSData *stored=CFBridgingRelease(ref); NSString *code=[[NSString alloc]initWithData:stored encoding:NSUTF8StringEncoding]; NSString *pub=[self publicKeyPEM]; if(!code.length||!pub.length)return;
+  NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name,@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"}; __weak typeof(self) weakSelf=self;
+  [self post:body path:@"/api/license/validate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; NSString *s=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(!error&&[s isEqualToString:@"active"]){[self finishLogin:code];} else if(!error){SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}); [self setStatus:@"Esta key não está mais ativa. Informe uma nova key SLEEP-."];} }];
+}
 - (void)activate:(id)sender {
   NSString *code=[[[self field] text] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub=[self publicKeyPEM];
   if(!code.length||!pub.length){[self setStatus:@"Insira uma key SLEEP- válida."];return;}
@@ -54,7 +61,7 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
 }
 - (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://discord.gg/sleepff"] options:@{} completionHandler:nil]; }
 - (void)prepare:(UIViewController *)controller {
-  self.controller=controller; [self ensureDeviceKey];
+  self.controller=controller; [self ensureDeviceKey]; [self validateStoredToken];
   UIView *loginView=nil; @try { loginView=[controller valueForKey:@"loginView"]; } @catch (__unused NSException *e) {}
   loginView.backgroundColor=[UIColor clearColor];
   UITextField *field=[self field]; field.placeholder=@"SLEEP- key"; field.textColor=[UIColor whiteColor]; field.tintColor=[UIColor whiteColor]; field.backgroundColor=[UIColor colorWithWhite:0 alpha:.35]; field.autocapitalizationType=UITextAutocapitalizationTypeNone; field.autocorrectionType=UITextAutocorrectionTypeNo;
