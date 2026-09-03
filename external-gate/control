@@ -1,0 +1,8 @@
+Package: com.sleep.store.external-gate
+Name: SLEEP STORE ExternalIOS Gate
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: SLEEP STORE license gate for ExternalIOS
+Maintainer: SLEEP STORE
+Author: SLEEP STORE
+Section: Tweaks
