@@ -18,6 +18,7 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 @interface SleepNativeBridge : NSObject
 @property(nonatomic,weak) UIViewController *controller;
 @property(nonatomic,assign) SecKeyRef privateKey;
+@property(nonatomic,assign) BOOL activationInFlight;
 @end
 
 @implementation SleepNativeBridge
@@ -64,9 +65,10 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
   UITextField *field=nil; @try { field=[self.controller valueForKey:@"keyField"]; } @catch (__unused NSException *e) {}
   NSString *rawCode = field.text ?: @""; NSString *code=[rawCode stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]; NSString *pub=[self publicKeyPEM];
   if(!code.length||![code hasPrefix:@"SLEEP-"]||!pub.length){[self setStatus:@"Informe uma key SLEEP- válida."];return;}
-  UIButton *button=nil; @try { button=[self.controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) {} button.enabled=NO; [self setStatus:@"Verificando key SLEEP STORE…"];
+  UIButton *button=nil; @try { button=[self.controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) {} button.enabled=NO; self.activationInFlight=YES; [self setStatus:@"Verificando key SLEEP STORE…"];
   NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name,@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"}; __weak typeof(self) weakSelf=self;
-  [self post:body path:@"/api/license/activate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; button.enabled=YES; NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error){[self setStatus:@"Não foi possível conectar ao servidor. Tente novamente."];return;} if(![status isEqualToString:@"active"]){NSDictionary *messages=@{@"invalid":@"Key inválida ou inexistente.",@"expired":@"Esta key expirou.",@"disabled":@"Esta key está bloqueada.",@"revoked":@"Esta key foi revogada.",@"device_mismatch":@"Esta key já está vinculada a outro dispositivo.",@"rate_limited":@"Servidor ocupado. Tente novamente em instantes."}; [self setStatus:messages[status]?:@"Não foi possível ativar a licença."];return;} [self saveKey:code]; [self showOriginalDashboard]; }];
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(22.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ __strong typeof(weakSelf) self=weakSelf; if(!self || !self.activationInFlight)return; self.activationInFlight=NO; button.enabled=YES; [self setStatus:@"Tempo limite ao conectar ao servidor. Tente novamente."]; });
+  [self post:body path:@"/api/license/activate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; if(!self || !self.activationInFlight)return; self.activationInFlight=NO; button.enabled=YES; NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error){[self setStatus:@"Não foi possível conectar ao servidor. Tente novamente."];return;} if(![status isEqualToString:@"active"]){NSDictionary *messages=@{@"invalid":@"Key inválida ou inexistente.",@"expired":@"Esta key expirou.",@"disabled":@"Esta key está bloqueada.",@"revoked":@"Esta key foi revogada.",@"device_mismatch":@"Esta key já está vinculada a outro dispositivo.",@"rate_limited":@"Servidor ocupado. Tente novamente em instantes."}; [self setStatus:messages[status]?:@"Não foi possível ativar a licença."];return;} [self saveKey:code]; [self showOriginalDashboard]; }];
 }
 - (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:SleepDiscord] options:@{} completionHandler:nil]; }
 @end
