@@ -1,0 +1,6 @@
+Package: com.sleep.store.external-native
+Name: SLEEP STORE Native Bridge
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Native ExternalIOS rain-screen bridge for SLEEP STORE
+Maintainer: sleepffx
