@@ -68,12 +68,7 @@ static NSString * const SleepInstallMarker = @"com.filzaslop.installation-marker
 - (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://discord.gg/sleepff"] options:@{} completionHandler:nil]; }
 - (void)prepare:(UIViewController *)controller {
   self.controller=controller; [self prepareInstallationState]; [self ensureDeviceKey]; [self validateStoredToken];
-  UIView *loginView=nil; @try { loginView=[controller valueForKey:@"loginView"]; } @catch (__unused NSException *e) {}
-  loginView.backgroundColor=[UIColor clearColor];
-  UITextField *field=[self field]; field.placeholder=@"SLEEP- key"; field.textColor=[UIColor whiteColor]; field.tintColor=[UIColor whiteColor]; field.backgroundColor=[UIColor colorWithWhite:0 alpha:.35]; field.autocapitalizationType=UITextAutocapitalizationTypeNone; field.autocorrectionType=UITextAutocorrectionTypeNo;
-  UIButton *button=[self button]; [button removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside]; [button setTitle:@"Ativar SLEEP STORE" forState:UIControlStateNormal]; [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal]; button.backgroundColor=[UIColor colorWithWhite:0 alpha:.55]; [button addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
-  [self setStatus:@"sleepffx · dev|cholyyk"]; 
-  UIView *root=controller.view; UIButton *discord=[root viewWithTag:7788]; if(!discord){ discord=[UIButton buttonWithType:UIButtonTypeSystem]; discord.tag=7788; discord.translatesAutoresizingMaskIntoConstraints=NO; [root addSubview:discord]; [NSLayoutConstraint activateConstraints:@[[discord.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[discord.bottomAnchor constraintEqualToAnchor:root.safeAreaLayoutGuide.bottomAnchor constant:-18],[discord.heightAnchor constraintEqualToConstant:32]]]; } [discord setTitle:@"Discord · sleepffx" forState:UIControlStateNormal]; discord.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium]; [discord setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal]; [discord addTarget:self action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
+  UIButton *button=[self button]; [button removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside]; [button addTarget:self action:@selector(activate:) forControlEvents:UIControlEventTouchUpInside];
 }
 @end
 
