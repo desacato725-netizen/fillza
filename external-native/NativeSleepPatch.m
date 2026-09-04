@@ -33,6 +33,15 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 - (void)sleepLoginTapped:(id)sender { (void)sender; SleepActivateForController(self.controller); }
 @end
 
+static UITabBarController *SleepFindTabController(UIViewController *root) {
+  if(!root)return nil;
+  if([root isKindOfClass:UITabBarController.class])return (UITabBarController *)root;
+  if(root.presentedViewController){ UITabBarController *found=SleepFindTabController(root.presentedViewController); if(found)return found; }
+  if([root isKindOfClass:UINavigationController.class])return SleepFindTabController(((UINavigationController *)root).visibleViewController);
+  for(UIViewController *child in root.childViewControllers){ UITabBarController *found=SleepFindTabController(child); if(found)return found; }
+  return nil;
+}
+
 @implementation SleepNativeBridge
 - (void)dealloc { if (self.privateKey) CFRelease(self.privateKey); }
 - (void)prepareInstallationState {
@@ -94,6 +103,11 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
         if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:tabSelector withObject:nil]; }
         else if(signature){ [self.controller performSelector:tabSelector]; }
       } @catch (__unused NSException *e) {}
+      UIWindow *window=self.controller.view.window;
+      if(!window)window=UIApplication.sharedApplication.keyWindow;
+      UITabBarController *tabs=SleepFindTabController(window.rootViewController);
+      if(tabs && tabs.viewControllers.count>1){ tabs.selectedIndex=1; [tabs.view layoutIfNeeded]; }
+      if(self.controller.presentingViewController && !self.controller.view.window){ [self.controller.presentingViewController dismissViewControllerAnimated:NO completion:nil]; }
     });
   });
 }
