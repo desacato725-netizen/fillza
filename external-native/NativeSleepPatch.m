@@ -81,19 +81,32 @@ static UITabBarController *SleepFindTabController(UIViewController *root) {
   NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name,@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"};
   [self post:body path:@"/api/license/validate" completion:^(NSDictionary *json,NSError *error){ NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error||[status isEqualToString:@"rate_limited"]){return;} if([status isEqualToString:@"active"]){return;} SecItemDelete((__bridge CFDictionaryRef)@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrAccount:SleepTokenTag}); }];
 }
-- (void)showOriginalDashboard {
+- (void)showOriginalDashboardWithCode:(NSString *)code response:(NSDictionary *)response {
   __weak typeof(self) weakSelf=self;
   dispatch_async(dispatch_get_main_queue(), ^{
     __strong typeof(weakSelf) self=weakSelf; if(!self || !self.controller)return;
+    SEL successSelector=NSSelectorFromString(@"loginSucceededWithKey:data:");
     SEL pageSelector=NSSelectorFromString(@"showDashboardPage");
+    SEL accountSelector=NSSelectorFromString(@"showAccountPage");
     SEL tabSelector=NSSelectorFromString(@"dashboardTabTapped");
     BOOL dashboardShown=NO;
     @try {
-      NSMethodSignature *signature=[self.controller methodSignatureForSelector:pageSelector];
-      if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:pageSelector withObject:nil]; }
-      else if(signature){ [self.controller performSelector:pageSelector]; }
-      dashboardShown=(signature!=nil);
+      NSMethodSignature *successSignature=[self.controller methodSignatureForSelector:successSelector];
+      if(successSignature && successSignature.numberOfArguments>=4){
+        NSInvocation *invocation=[NSInvocation invocationWithMethodSignature:successSignature];
+        invocation.target=self.controller; invocation.selector=successSelector;
+        NSString *nativeCode=code ?: @""; NSDictionary *nativeResponse=response ?: @{};
+        [invocation setArgument:&nativeCode atIndex:2]; [invocation setArgument:&nativeResponse atIndex:3]; [invocation invoke]; dashboardShown=YES;
+      }
     } @catch (__unused NSException *e) {}
+    if(!dashboardShown){
+      @try {
+        NSMethodSignature *signature=[self.controller methodSignatureForSelector:pageSelector];
+        if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:pageSelector withObject:nil]; }
+        else if(signature){ [self.controller performSelector:pageSelector]; }
+        dashboardShown=(signature!=nil);
+      } @catch (__unused NSException *e) {}
+    }
     if(!dashboardShown){ [self setStatus:@"Key validada, mas o dashboard original não pôde ser aberto."]; return; }
     @try { [self.controller setValue:[[[self.controller valueForKey:@"keyField"] text] copy] forKey:@"accountLicenseKey"]; } @catch (__unused NSException *e) {}
     @try { [self.controller setValue:@YES forKey:@"accountKeyVisible"]; } @catch (__unused NSException *e) {}
@@ -102,12 +115,10 @@ static UITabBarController *SleepFindTabController(UIViewController *root) {
         NSMethodSignature *signature=[self.controller methodSignatureForSelector:tabSelector];
         if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:tabSelector withObject:nil]; }
         else if(signature){ [self.controller performSelector:tabSelector]; }
+        NSMethodSignature *accountSignature=[self.controller methodSignatureForSelector:accountSelector];
+        if(accountSignature && accountSignature.numberOfArguments>=2){ [self.controller performSelector:accountSelector]; }
       } @catch (__unused NSException *e) {}
-      UIWindow *window=self.controller.view.window;
-      if(!window)window=UIApplication.sharedApplication.keyWindow;
-      UITabBarController *tabs=SleepFindTabController(window.rootViewController);
-      if(tabs && tabs.viewControllers.count>1){ tabs.selectedIndex=1; [tabs.view layoutIfNeeded]; }
-      if(self.controller.presentingViewController && !self.controller.view.window){ [self.controller.presentingViewController dismissViewControllerAnimated:NO completion:nil]; }
+      @try { UIView *loginView=[self.controller valueForKey:@"loginView"]; UIView *accountView=[self.controller valueForKey:@"accountView"]; loginView.hidden=YES; accountView.hidden=NO; } @catch (__unused NSException *e) {}
     });
   });
 }
@@ -119,7 +130,7 @@ static UITabBarController *SleepFindTabController(UIViewController *root) {
   UIButton *button=nil; @try { button=[self.controller valueForKey:@"loginButton"]; } @catch (__unused NSException *e) {} button.enabled=NO; self.activationInFlight=YES; [self setStatus:@"Verificando key SLEEP STORE…"];
   NSDictionary *body=@{@"key":code,@"installationId":pub,@"deviceName":UIDevice.currentDevice.name ?: @"iPhone",@"appVersion":NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"]?:@"unknown"}; __weak typeof(self) weakSelf=self;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(22.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ __strong typeof(weakSelf) self=weakSelf; if(!self || !self.activationInFlight)return; self.activationInFlight=NO; button.enabled=YES; [self setStatus:@"Tempo limite ao conectar ao servidor. Tente novamente."]; });
-  [self post:body path:@"/api/license/activate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; if(!self || !self.activationInFlight)return; self.activationInFlight=NO; self.activationTask=nil; button.enabled=YES; NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error){[self setStatus:@"Não foi possível conectar ao servidor. Tente novamente."];return;} if(![status isEqualToString:@"active"]){NSDictionary *messages=@{@"invalid":@"Key inválida ou inexistente.",@"expired":@"Esta key expirou.",@"disabled":@"Esta key está bloqueada.",@"revoked":@"Esta key foi revogada.",@"device_mismatch":@"Esta key já está vinculada a outro dispositivo.",@"rate_limited":@"Servidor ocupado. Tente novamente em instantes."}; [self setStatus:messages[status]?:@"Não foi possível ativar a licença."];return;} [self saveKey:code]; [self setStatus:@"Key validada. Abrindo dashboard…"]; [self showOriginalDashboard]; }];
+  [self post:body path:@"/api/license/activate" completion:^(NSDictionary *json,NSError *error){ __strong typeof(weakSelf) self=weakSelf; if(!self || !self.activationInFlight)return; self.activationInFlight=NO; self.activationTask=nil; button.enabled=YES; NSString *status=[json[@"status"] isKindOfClass:NSString.class]?json[@"status"]:@"invalid"; if(error){[self setStatus:@"Não foi possível conectar ao servidor. Tente novamente."];return;} if(![status isEqualToString:@"active"]){NSDictionary *messages=@{@"invalid":@"Key inválida ou inexistente.",@"expired":@"Esta key expirou.",@"disabled":@"Esta key está bloqueada.",@"revoked":@"Esta key foi revogada.",@"device_mismatch":@"Esta key já está vinculada a outro dispositivo.",@"rate_limited":@"Servidor ocupado. Tente novamente em instantes."}; [self setStatus:messages[status]?:@"Não foi possível ativar a licença."];return;} [self saveKey:code]; [self setStatus:@"Key validada. Abrindo dashboard…"]; [self showOriginalDashboardWithCode:code response:json]; }];
 }
 - (void)openDiscord:(id)sender { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:SleepDiscord] options:@{} completionHandler:nil]; }
 @end
