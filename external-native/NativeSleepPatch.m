@@ -76,13 +76,24 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
   __weak typeof(self) weakSelf=self;
   dispatch_async(dispatch_get_main_queue(), ^{
     __strong typeof(weakSelf) self=weakSelf; if(!self || !self.controller)return;
+    SEL pageSelector=NSSelectorFromString(@"showDashboardPage");
+    SEL tabSelector=NSSelectorFromString(@"dashboardTabTapped");
     BOOL dashboardShown=NO;
-    @try { [self.controller performSelector:NSSelectorFromString(@"showDashboardPage")]; dashboardShown=YES; } @catch (__unused NSException *e) {}
+    @try {
+      NSMethodSignature *signature=[self.controller methodSignatureForSelector:pageSelector];
+      if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:pageSelector withObject:nil]; }
+      else if(signature){ [self.controller performSelector:pageSelector]; }
+      dashboardShown=(signature!=nil);
+    } @catch (__unused NSException *e) {}
     if(!dashboardShown){ [self setStatus:@"Key validada, mas o dashboard original não pôde ser aberto."]; return; }
     @try { [self.controller setValue:[[[self.controller valueForKey:@"keyField"] text] copy] forKey:@"accountLicenseKey"]; } @catch (__unused NSException *e) {}
     @try { [self.controller setValue:@YES forKey:@"accountKeyVisible"]; } @catch (__unused NSException *e) {}
-    dispatch_async(dispatch_get_main_queue(), ^{
-      @try { [self.controller performSelector:NSSelectorFromString(@"dashboardTabTapped")]; } @catch (__unused NSException *e) {}
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      @try {
+        NSMethodSignature *signature=[self.controller methodSignatureForSelector:tabSelector];
+        if(signature && signature.numberOfArguments>=3){ [self.controller performSelector:tabSelector withObject:nil]; }
+        else if(signature){ [self.controller performSelector:tabSelector]; }
+      } @catch (__unused NSException *e) {}
     });
   });
 }
