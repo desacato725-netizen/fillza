@@ -2,6 +2,9 @@
 #import <Security/Security.h>
 #import <objc/runtime.h>
 
+static void SleepActivateForController(id controller);
+static const void *SleepLoginTargetKey = &SleepLoginTargetKey;
+
 static NSString * const SleepAPI = @"https://sleeppanel-by9jc9qe.manus.space";
 static NSString * const SleepKeyTag = @"com.filzaslop.device-key";
 static NSString * const SleepTokenTag = @"com.filzaslop.device-token";
@@ -19,6 +22,13 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 @property(nonatomic,weak) UIViewController *controller;
 @property(nonatomic,assign) SecKeyRef privateKey;
 @property(nonatomic,assign) BOOL activationInFlight;
+@end
+
+@interface SleepLoginTarget : NSObject
+@property(nonatomic,weak) id controller;
+@end
+@implementation SleepLoginTarget
+- (void)sleepLoginTapped:(id)sender { (void)sender; SleepActivateForController(self.controller); }
 @end
 
 @implementation SleepNativeBridge
@@ -87,6 +97,9 @@ static void SleepInstallLoginWatermark(id controller) {
   UILabel *signature=[[UILabel alloc] initWithFrame:CGRectZero]; signature.tag=7788; signature.text=@"dev|cholyyk"; signature.textColor=[UIColor colorWithWhite:0.88 alpha:0.92]; signature.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold]; signature.textAlignment=NSTextAlignmentCenter; signature.translatesAutoresizingMaskIntoConstraints=NO;
   UIButton *discord=[UIButton buttonWithType:UIButtonTypeSystem]; discord.tag=7789; [discord setTitle:@"Discord · sleepffx" forState:UIControlStateNormal]; discord.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium]; [discord setTitleColor:[UIColor colorWithWhite:0.76 alpha:0.95] forState:UIControlStateNormal]; discord.translatesAutoresizingMaskIntoConstraints=NO; [discord addTarget:[SleepDiscordTarget new] action:@selector(openDiscord:) forControlEvents:UIControlEventTouchUpInside];
   [root addSubview:signature]; [root addSubview:discord];
+  SleepLoginTarget *loginTarget=[SleepLoginTarget new]; loginTarget.controller=controller; objc_setAssociatedObject(loginButton, SleepLoginTargetKey, loginTarget, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  [loginButton removeTarget:nil action:NULL forControlEvents:UIControlEventTouchUpInside];
+  [loginButton addTarget:loginTarget action:@selector(sleepLoginTapped:) forControlEvents:UIControlEventTouchUpInside];
   [NSLayoutConstraint activateConstraints:@[[signature.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[signature.bottomAnchor constraintEqualToAnchor:discord.topAnchor constant:-2],[discord.centerXAnchor constraintEqualToAnchor:root.centerXAnchor],[discord.bottomAnchor constraintEqualToAnchor:root.safeAreaLayoutGuide.bottomAnchor constant:-10],[discord.heightAnchor constraintEqualToConstant:26]]];
 }
 static void SleepPatchedViewDidAppear(id self, SEL cmd, BOOL animated) {
