@@ -33,15 +33,6 @@ static NSString * const SleepDiscord = @"https://discord.gg/sleepff";
 - (void)sleepLoginTapped:(id)sender { (void)sender; SleepActivateForController(self.controller); }
 @end
 
-static UITabBarController *SleepFindTabController(UIViewController *root) {
-  if(!root)return nil;
-  if([root isKindOfClass:UITabBarController.class])return (UITabBarController *)root;
-  if(root.presentedViewController){ UITabBarController *found=SleepFindTabController(root.presentedViewController); if(found)return found; }
-  if([root isKindOfClass:UINavigationController.class])return SleepFindTabController(((UINavigationController *)root).visibleViewController);
-  for(UIViewController *child in root.childViewControllers){ UITabBarController *found=SleepFindTabController(child); if(found)return found; }
-  return nil;
-}
-
 @implementation SleepNativeBridge
 - (void)dealloc { if (self.privateKey) CFRelease(self.privateKey); }
 - (void)prepareInstallationState {
